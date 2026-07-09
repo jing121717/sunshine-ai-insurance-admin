@@ -1,0 +1,32 @@
+# PHP dependencies and runtime files
+/vendor/
+/runtime/
+# Local environment files
+.env
+.env.local
+.env.*.local
+# Composer lock can be committed in real production projects.
+# Keep it ignored here because this is a portfolio template/demo project.
+composer.lock
+# Electron dependencies and generated desktop artifacts
+/electron/
+/electron/node_modules/
+/electron/runtime/php/
+/electron/runtime/*.zip
+/electron/resources/app-server/vendor/
+/electron/resources/app-server/.env
+/electron/resources/app-server/runtime/
+# Packaged Windows output
+/win-unpacked/
+*.exe
+*.blockmap
+builder-debug.yml
+# Logs and temporary files
+*.log
+*.tmp
+*.cache
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
