@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>阳光保险AI智能保单客服后台</title>
+  <link rel="stylesheet" href="https://cdn.staticfile.org/layui/2.9.8/css/layui.css">
+  <style>
+    body { background: #f5f7fb; }
+    .layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+    .side { background: #1f2937; color: #fff; padding: 18px 14px; }
+    .brand { font-size: 18px; font-weight: 700; margin-bottom: 24px; }
+    .side .layui-btn { width: 100%; margin: 6px 0; text-align: left; }
+    .main { padding: 20px; }
+    .toolbar { display: flex; gap: 10px; margin-bottom: 12px; }
+    .panel { background: #fff; border-radius: 6px; padding: 16px; box-shadow: 0 1px 6px rgba(0,0,0,.06); }
+    .ai-box { display: grid; grid-template-columns: 1fr 340px; gap: 16px; }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .ai-box { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="side">
+    <div class="brand">阳光保险AI后台</div>
+    <button class="layui-btn layui-btn-warm" onclick="quickLogin()">演示登录</button>
+    <button class="layui-btn layui-btn-primary" onclick="showTab('customer')">客户管理</button>
+    <button class="layui-btn layui-btn-primary" onclick="showTab('policy')">保单管理</button>
+    <button class="layui-btn layui-btn-primary" onclick="showTab('ai')">AI智能咨询</button>
+    <button class="layui-btn layui-btn-primary" onclick="showTab('rbac')">RBAC权限</button>
+  </aside>
+  <main class="main">
+    <div class="panel" id="customer">
+      <div class="toolbar">
+        <input class="layui-input" id="customerKeyword" placeholder="客户姓名/手机号/编号">
+        <button class="layui-btn" onclick="reloadCustomer()">查询</button>
+      </div>
+      <table id="customerTable" lay-filter="customerTable"></table>
+    </div>
+
+    <div class="panel" id="policy" style="display:none">
+      <div class="toolbar">
+        <select class="layui-select" id="policyStatus">
+          <option value="">全部状态</option>
+          <option value="待审核">待审核</option>
+          <option value="生效">生效</option>
+          <option value="退保">退保</option>
+          <option value="理赔">理赔</option>
+        </select>
+        <button class="layui-btn" onclick="reloadPolicy()">查询</button>
+        <button class="layui-btn layui-btn-normal" onclick="location.href='/admin/policy/export'">导出保单</button>
+      </div>
+      <table id="policyTable" lay-filter="policyTable"></table>
+    </div>
+
+    <div class="panel" id="ai" style="display:none">
+      <div class="ai-box">
+        <div>
+          <textarea id="question" class="layui-textarea" rows="8" placeholder="请输入客户关于车险、重疾险、医疗险或保单状态的问题"></textarea>
+          <br>
+          <input id="policyId" class="layui-input" placeholder="可选：关联保单ID">
+          <br>
+          <button class="layui-btn" onclick="askAi()">发送咨询</button>
+        </div>
+        <div>
+          <h3>AI回复</h3>
+          <div id="answer" style="white-space:pre-wrap;line-height:1.8;margin-top:12px;color:#334155"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="rbac" style="display:none">
+      <table id="roleTable" lay-filter="roleTable"></table>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.staticfile.org/layui/2.9.8/layui.js"></script>
+<script>
+let table, layer, $, csrfToken = '';
+layui.use(['table', 'layer', 'jquery'], function () {
+  table = layui.table;
+  layer = layui.layer;
+  $ = layui.jquery;
+  $.get('/admin/csrf', function (res) {
+    csrfToken = res.data.token || '';
+  });
+  renderCustomer();
+  renderPolicy();
+  renderRole();
+});
+
+function showTab(id) {
+  ['customer', 'policy', 'ai', 'rbac'].forEach(function (item) {
+    document.getElementById(item).style.display = item === id ? 'block' : 'none';
+  });
+}
+
+function renderCustomer() {
+  table.render({
+    elem: '#customerTable',
+    url: '/admin/customer/list',
+    page: true,
+    cols: [[
+      {field:'customer_no', title:'客户编号', width:150},
+      {field:'name', title:'姓名', width:100},
+      {field:'mobile_masked', title:'手机号', width:140},
+      {field:'id_card_masked', title:'身份证', width:190},
+      {field:'city', title:'城市', width:120},
+      {field:'risk_level', title:'风险等级', width:110},
+      {field:'remark', title:'备注'}
+    ]]
+  });
+}
+
+function reloadCustomer() {
+  table.reload('customerTable', { where: { keyword: $('#customerKeyword').val() }, page: { curr: 1 } });
+}
+
+function renderPolicy() {
+  table.render({
+    elem: '#policyTable',
+    url: '/admin/policy/list',
+    page: true,
+    cols: [[
+      {field:'policy_no', title:'保单号', width:160},
+      {field:'product_type', title:'类型', width:100},
+      {field:'product_name', title:'产品名称', width:180},
+      {field:'premium_amount', title:'保费', width:100},
+      {field:'insured_amount', title:'保额', width:120},
+      {field:'status', title:'状态', width:100},
+      {field:'effective_date', title:'生效日', width:120},
+      {field:'expire_date', title:'到期日', width:120}
+    ]]
+  });
+}
+
+function reloadPolicy() {
+  table.reload('policyTable', { where: { status: $('#policyStatus').val() }, page: { curr: 1 } });
+}
+
+function renderRole() {
+  table.render({
+    elem: '#roleTable',
+    url: '/admin/rbac/roles',
+    page: false,
+    cols: [[
+      {field:'role_name', title:'角色名称'},
+      {field:'role_code', title:'角色编码'},
+      {field:'description', title:'说明'},
+      {field:'status', title:'状态'}
+    ]]
+  });
+}
+
+function askAi() {
+  const question = $('#question').val();
+  if (!question) return layer.msg('请输入咨询问题');
+  $('#answer').text('AI正在生成回答...');
+  $.post('/admin/ai/ask', { question: question, policy_id: $('#policyId').val(), __token__: csrfToken }, function (res) {
+    if (res.code !== 0) return layer.msg(res.msg);
+    $('#answer').text(res.data.answer);
+  });
+}
+
+function quickLogin() {
+  $.post('/admin/login', { username: 'admin', password: '123456', __token__: csrfToken }, function (res) {
+    layer.msg(res.msg);
+    $.get('/admin/csrf', function (next) {
+      csrfToken = next.data.token || csrfToken;
+    });
+    reloadCustomer();
+    reloadPolicy();
+  });
+}
+</script>
+</body>
+</html>
